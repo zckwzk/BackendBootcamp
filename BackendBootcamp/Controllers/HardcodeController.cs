@@ -3,14 +3,21 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BackendBootcamp.Controllers
 {
+
     [Route("api/[controller]")]
     [ApiController]
     public class HardcodeController : ControllerBase
     {
+        private static string frontEndurl = "";
+        public HardcodeController(IConfiguration configuration)
+        {
+            frontEndurl = configuration["fronturl"];
+        }
+
         [HttpGet]
         public ActionResult Test()
         {
-            return Ok("Test Get");
+            return Ok(frontEndurl);
         }
 
         [HttpGet]

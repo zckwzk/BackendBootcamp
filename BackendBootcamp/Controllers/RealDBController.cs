@@ -9,14 +9,16 @@ namespace BackendBootcamp.Controllers
     [ApiController]
     public class RealDBController : ControllerBase
     {
+        
+
         [HttpGet]
         [Route("GetProductReader")]
-        public ActionResult GetProductReader()
+        public ActionResult GetProductReader([FromQuery] string? name)
         {
             try
             {
                 List<object> result = new List<object>();
-                result = RealDBLogic.GetProductReader();
+                result = RealDBLogic.GetProductReader(name);
 
                 return Ok(result);
             }
@@ -28,12 +30,12 @@ namespace BackendBootcamp.Controllers
 
         [HttpGet]
         [Route("GetProducAdapter")]
-        public ActionResult GetProductAdapter()
+        public ActionResult GetProductAdapter([FromQuery] string? name)
         {
             try
             {
                 List<Product> result = new List<Product>();
-                result = RealDBLogic.GetProductAdapter();
+                result = RealDBLogic.GetProductAdapter(name);
 
                 return Ok(result);
             }
@@ -85,6 +87,22 @@ namespace BackendBootcamp.Controllers
             try
             {
                 return Ok(body);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [Route("InsertUserWithProduct")]
+        public ActionResult InserUserProduct([FromBody] UserWithProducs body)
+        {
+            try
+            {
+                RealDBLogic.InsertUserWithProduct(body);
+
+                return Ok("success");
             }
             catch (Exception ex)
             {
