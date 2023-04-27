@@ -15,6 +15,16 @@
         public string name { get; set; }
     }
 
+    public class UserDTO
+    {
+        public string name { get; set; }
+
+        public string password { get; set; }
+
+        public string role { get; set; }
+
+    }
+
     public class UserWithProducs : User
     {
         public List<Product> products { get; set; }

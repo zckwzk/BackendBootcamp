@@ -1,7 +1,10 @@
 ﻿using BackendBootcamp.Logics;
 using BackendBootcamp.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Data;
+using System.Security.Claims;
 
 namespace BackendBootcamp.Controllers
 {
@@ -13,10 +16,25 @@ namespace BackendBootcamp.Controllers
 
         [HttpGet]
         [Route("GetProductReader")]
-        public ActionResult GetProductReader([FromQuery] string? name)
+        public ActionResult GetProductReader([FromQuery] string? name, [FromHeader] string? Authorization)
         {
             try
             {
+                var isAuth = JwtTokenLogic.ValidateJwtToken(Authorization);
+
+                if(isAuth == null)
+                {
+                    return StatusCode(401, "Not Authorized");
+                }
+
+                // validate role to access this api
+                string role = isAuth.First(x => x.Type == "role").Value;
+                if (role != "admin" && role != "user")
+                {
+                    return StatusCode(401, "Your roles is not high enough to access this!");
+                }
+
+
                 List<object> result = new List<object>();
                 result = RealDBLogic.GetProductReader(name);
 
@@ -30,10 +48,17 @@ namespace BackendBootcamp.Controllers
 
         [HttpGet]
         [Route("GetProducAdapter")]
+        //[Authorize(Roles = "admin,user")]
+        [Authorize]
         public ActionResult GetProductAdapter([FromQuery] string? name)
         {
             try
             {
+                //claim data
+                ClaimsIdentity identity = HttpContext.User.Identity as ClaimsIdentity;
+                string currentUser = Convert.ToString(identity.FindFirst("name").Value);
+                
+                // get product
                 List<Product> result = new List<Product>();
                 result = RealDBLogic.GetProductAdapter(name);
 
