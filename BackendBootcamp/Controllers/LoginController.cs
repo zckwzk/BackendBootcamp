@@ -13,6 +13,10 @@ namespace BackendBootcamp.Controllers
     [ApiController]
     public class LoginController : ControllerBase
     {
+        private static string baseUrl = "";
+        public LoginController(IConfiguration configuration) {
+            baseUrl = configuration["fronturl"];
+        }
 
         [HttpPost]
         public ActionResult Login([FromBody] UserDTO body)
@@ -103,14 +107,28 @@ namespace BackendBootcamp.Controllers
                     throw new Exception("role cant be empty");
                 }
 
+                string query = "Select top 1 * from users where [name] = @name";
+                SqlParameter[] sqlParams = new SqlParameter[]
+                {
+                    new SqlParameter("@name", SqlDbType.VarChar) { Value = body.name ?? "" }
+                };
+
+                DataTable users = CRUD.ExecuteQuery(query, sqlParams);
+
+                if (users.Rows.Count > 0)
+                {
+                    throw new Exception("User Already Registered");
+                }
+
+
                 byte[] passwordHash = Array.Empty<byte>();
                 byte[] passwordSalt = Array.Empty<byte>();
 
                 //(passwordHash,passwordSalt) = CryptoLogic.GenerateHash(body.password);
                 CryptoLogic.GenerateHash(body.password,out passwordHash, out passwordSalt);
 
-                string query = "INSERT INTO Users([name], password_hash, password_salt, [role]) VALUES (@name, @password_hash, @password_salt, @role)";
-                SqlParameter[] sqlParams = new SqlParameter[]
+                query = "INSERT INTO Users([name], password_hash, password_salt, [role], active) VALUES (@name, @password_hash, @password_salt, @role,0)";
+                sqlParams = new SqlParameter[]
                 {
                     new SqlParameter("@name", SqlDbType.VarChar) { Value = body.name ?? "" },
                     new SqlParameter("@password_hash", SqlDbType.VarBinary) { Value = passwordHash },
@@ -119,6 +137,31 @@ namespace BackendBootcamp.Controllers
                 };
 
                 CRUD.ExecuteNonQuery(query, sqlParams);
+
+
+                //generate random string
+                string token = Guid.NewGuid().ToString();
+
+
+                query = "Insert into Token (token, expire_date, usage_type,email) values (@token,null,'register',@email)";
+                sqlParams = new SqlParameter[]
+                {
+                    new SqlParameter("@email", SqlDbType.VarChar) { Value = body.name ?? "" },
+                    new SqlParameter("@token", SqlDbType.VarChar) { Value = token },
+                };
+
+                CRUD.ExecuteNonQuery(query, sqlParams);
+
+                string sendTo = body.name ?? "";
+                string subject = "Email Activation";
+                string verificationUrl = baseUrl + "/verify/" + token;
+
+                string emailBody = $@"
+                <h4>This is an activation link</h4>
+                <a href='{verificationUrl}'>{verificationUrl}</a>
+                ";
+
+                EmailLogic.SendEmail(sendTo, subject, emailBody);
 
                 return StatusCode(201,"Success");
 
@@ -131,11 +174,59 @@ namespace BackendBootcamp.Controllers
         }
 
         [HttpGet]
-        [Route("checktoken")]
+        [Route("checktokenjwt")]
         [Authorize]
         public ActionResult TokenCheck(string token)
         {
             return Ok("Success");
+        }
+
+        [HttpGet]
+        [Route("verifuser")]
+        public ActionResult TokenVerification(string token)
+        {
+            try
+            {
+                string query = "Select top 1 email from Token where token = @token";
+                SqlParameter[] sqlParams = new SqlParameter[]
+                {
+                    new SqlParameter("@token", SqlDbType.VarChar) { Value = token ?? "" }
+                };
+
+                object emailObject = CRUD.ExecuteScalar(query, sqlParams);
+                string email = emailObject == DBNull.Value ? "" : (string) emailObject;
+
+                if (String.IsNullOrEmpty(email))
+                {
+                    throw new Exception("Activation link not valid");
+                }
+
+                //update user => active = 1
+                query = "Update users set active = 1 where name = @email";
+                sqlParams = new SqlParameter[]
+                {
+                    new SqlParameter("@email", SqlDbType.VarChar) { Value = email ?? "" }
+                };
+
+                CRUD.ExecuteNonQuery(query, sqlParams);
+
+                query = "delete from Token where token = @token";
+                sqlParams = new SqlParameter[]
+                {
+                    new SqlParameter("@token", SqlDbType.VarChar) { Value = token ?? "" }
+                };
+
+                CRUD.ExecuteNonQuery (query, sqlParams);
+
+                return Ok("Success Activation");
+
+
+
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

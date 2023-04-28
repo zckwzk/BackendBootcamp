@@ -24,6 +24,7 @@ builder.Services.AddCors(p => p.AddPolicy("corsapp", builder =>
 IConfiguration configuration = builder.Configuration;
 RealDBLogic.GetConfiguration(configuration);
 CRUD.GetConfiguration(configuration);
+EmailLogic.GetConfiguration(configuration);
 
 //add configuration in jwt token logic manual
 JwtTokenLogic.GetConfiguration(configuration);
